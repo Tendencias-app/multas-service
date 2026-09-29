@@ -1,0 +1,2 @@
+class MultaNoEncontrada(Exception):
+    pass
