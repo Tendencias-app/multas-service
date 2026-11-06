@@ -2,3 +2,7 @@ fastapi>=0.141.1
 uvicorn[standard]==0.30.*
 pydantic-settings==2.*
 prometheus-fastapi-instrumentator>=8.1.0
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+confluent-kafka>=2.5
+tzdata

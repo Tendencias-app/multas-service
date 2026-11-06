@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  calidad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      - name: Estilo (ruff)
+        run: ruff check .
+
+      - name: Pruebas y cobertura
+        run: pytest --cov=app
+
+      - name: Seguridad del código (bandit)
+        run: bandit -r app
+
+      - name: Vulnerabilidades de dependencias (pip-audit)
+        run: pip-audit -r requirements.txt
+
+      - name: Construir imagen Docker
+        run: docker build -t carsattm-ms-multas:ci .

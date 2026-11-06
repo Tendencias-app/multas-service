@@ -8,3 +8,7 @@ htmlcov/
 .env
 .idea/
 .vscode/
+*.tar
+multas.tar
+
+*.tar

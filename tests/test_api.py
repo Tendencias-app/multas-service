@@ -1,63 +1,51 @@
-from uuid import uuid4
+from itertools import count
 
-import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.domain.models import TipoMulta
+from app.main import app, service
 
 client = TestClient(app)
+_ordenes = count(1000)
+
+
+def crear_multa(usuario_id=1001):
+    return service.crear_desde_evento(
+        next(_ordenes), usuario_id, TipoMulta.RETRASO, 500000, 3, "prueba"
+    )
 
 
 def test_health():
     assert client.get("/health").json() == {"status": "ok"}
 
 
-def test_crear_y_consultar_multa():
-    body = {"ordenId": str(uuid4()), "usuarioId": str(uuid4()),
-            "vehiculoId": str(uuid4()), "tipo": "RETRASO",
-            "valorMulta": 90000, "motivo": "Devolución tardía"}
-    creada = client.post("/api/v1/multas", json=body)
-    assert creada.status_code == 201
-    consulta = client.get(f"/api/v1/multas/{creada.json()['id']}")
-    assert consulta.status_code == 200
+def test_consultar_multa_por_id():
+    multa = crear_multa()
+    resp = client.get(f"/api/v1/multas/{multa.id}")
+    assert resp.status_code == 200
+    assert resp.json()["precioMulta"] == 150000
 
 
 def test_multa_inexistente_da_404():
-    assert client.get(f"/api/v1/multas/{uuid4()}").status_code == 404
-
-def test_listar_multas_de_usuario():
-    usuario = str(uuid4())
-    body = {"ordenId": str(uuid4()), "usuarioId": usuario,
-            "vehiculoId": str(uuid4()), "tipo": "RETRASO",
-            "valorMulta": 50000, "motivo": "Retraso de dos horas"}
-    client.post("/api/v1/multas", json=body)
-    resp = client.get(f"/api/v1/multas/usuarios/{usuario}")
-    assert resp.status_code == 200
-    assert len(resp.json()) == 1
+    assert client.get("/api/v1/multas/999999").status_code == 404
 
 
-
-UUID_X = "11111111-1111-1111-1111-111111111111"
-CALCULO_BODY = {
-    "ordenId": UUID_X, "usuarioId": UUID_X, "vehiculoId": UUID_X,
-    "fechaLimiteDevolucion": "2026-10-05T10:00:00Z",
-    "fechaDevolucionReal": "2026-10-06T14:30:00Z",
-    "tarifaDiaria": 180000, "tipoIncumplimiento": "RETRASO",
-}
-NOTIF_BODY = {
-    "ordenId": UUID_X, "usuarioId": UUID_X, "vehiculoId": UUID_X,
-    "fechaLimiteDevolucion": "2026-10-05T10:00:00Z", "horasRetraso": 28,
-}
+def test_listar_por_usuario_y_por_orden():
+    multa = crear_multa(usuario_id=777)
+    por_usuario = client.get("/api/v1/multas/usuarios/777").json()
+    por_orden = client.get(f"/api/v1/multas/ordenes/{multa.orden_id}").json()
+    assert len(por_usuario) == 1
+    assert por_orden[0]["id"] == multa.id
 
 
-@pytest.mark.parametrize("metodo,ruta,body", [
-    ("post", "/api/v1/multas/calculos", CALCULO_BODY),
-    ("post", "/api/v1/multas/notificaciones/retrasos", NOTIF_BODY),
-    ("get", "/api/v1/multas", None),
-    ("get", f"/api/v1/multas/ordenes/{UUID_X}", None),
-    ("get", f"/api/v1/multas/usuarios/{UUID_X}/restriccion", None),
-    ("patch", f"/api/v1/multas/{UUID_X}/estado", {"estado": "NOTIFICADA"}),
-])
-def test_endpoints_pendientes_devuelven_501(metodo, ruta, body):
-    resp = getattr(client, metodo)(ruta, json=body) if body else getattr(client, metodo)(ruta)
-    assert resp.status_code == 501
+def test_pagar_multa_y_no_permitir_segundo_pago():
+    multa = crear_multa()
+    ok = client.post(f"/api/v1/multas/{multa.id}/pago")
+    assert ok.status_code == 200
+    assert ok.json()["estado"] == "PAGADA"
+    assert ok.json()["fechaPago"] is not None
+    assert client.post(f"/api/v1/multas/{multa.id}/pago").status_code == 409
+
+
+def test_pagar_multa_inexistente_da_404():
+    assert client.post("/api/v1/multas/999999/pago").status_code == 404

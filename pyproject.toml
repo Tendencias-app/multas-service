@@ -6,3 +6,10 @@ select = ["E", "F", "I", "B"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends"]
+
+[tool.coverage.run]
+omit = [
+    "app/adapters/inbound/kafka/consumer.py",
+    "app/adapters/outbound/kafka_publisher.py",
+    "app/adapters/outbound/postgres/*",
+]

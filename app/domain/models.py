@@ -1,32 +1,34 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from uuid import UUID, uuid4
+
+from app.domain.errors import MultaYaPagada
 
 
 class TipoMulta(str, Enum):
     RETRASO = "RETRASO"
-    DANOS = "DANOS"
-    INCUMPLIMIENTO_DEVOLUCION = "INCUMPLIMIENTO_DEVOLUCION"
-    OTRA_NOVEDAD = "OTRA_NOVEDAD"
+    DANOS = "DAÑOS"
 
 
 class EstadoMulta(str, Enum):
     PENDIENTE = "PENDIENTE"
-    NOTIFICADA = "NOTIFICADA"
-    EN_REVISION = "EN_REVISION"
     PAGADA = "PAGADA"
-    ANULADA = "ANULADA"
 
 
 @dataclass
 class Multa:
-    orden_id: UUID
-    usuario_id: UUID
-    vehiculo_id: UUID
+    orden_id: int
+    usuario_id: int
     tipo: TipoMulta
-    valor_multa: float
-    motivo: str
+    precio_multa: float
+    observacion: str
     estado: EstadoMulta = EstadoMulta.PENDIENTE
-    id: UUID = field(default_factory=uuid4)
+    id: int | None = None
     creada_en: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    fecha_pago: datetime | None = None
+
+    def pagar(self) -> None:
+        if self.estado is EstadoMulta.PAGADA:
+            raise MultaYaPagada(str(self.id))
+        self.estado = EstadoMulta.PAGADA
+        self.fecha_pago = datetime.now(timezone.utc)
