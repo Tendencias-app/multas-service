@@ -1,9 +1,17 @@
+from enum import Enum
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.adapters.inbound.http.schemas import ErrorResponse, MultaResponse
 from app.application.services import MultaService
 from app.domain.errors import MultaNoEncontrada, MultaYaPagada
-from app.domain.models import Multa
+from app.domain.models import EstadoMulta, Multa
+
+
+class FiltroEstado(str, Enum):
+    TODAS = "TODAS"
+    PENDIENTE = "PENDIENTE"
+    PAGADA = "PAGADA"
 
 router = APIRouter(prefix="/api/v1/multas", tags=["Multas"])
 
@@ -21,6 +29,17 @@ def a_respuesta(m: Multa) -> MultaResponse:
         creadaEn=m.creada_en, fechaPago=m.fecha_pago,
     )
 
+@router.get(
+    "",
+    response_model=list[MultaResponse],
+    summary="Lista las multas filtradas por estado (por defecto, todas)",
+)
+def listar_multas(
+    estado: FiltroEstado = FiltroEstado.TODAS,
+    svc: MultaService = Depends(get_service),
+):
+    filtro = None if estado is FiltroEstado.TODAS else EstadoMulta(estado.value)
+    return [a_respuesta(m) for m in svc.listar(filtro)]
 
 @router.get("/usuarios/{usuario_id}", response_model=list[MultaResponse],
             summary="Lista las multas de un usuario")

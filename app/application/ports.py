@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 
-from app.domain.models import Multa
+from app.domain.models import EstadoMulta, Multa
 
 
 class MultaRepository(ABC):
+    @abstractmethod
+    def listar(self, estado: EstadoMulta | None = None) -> list[Multa]: ...
     @abstractmethod
     def guardar(self, multa: Multa) -> Multa: ...
 

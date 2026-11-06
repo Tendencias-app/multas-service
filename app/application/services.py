@@ -1,7 +1,7 @@
 from app.application.ports import EventPublisher, MultaRepository
 from app.domain.calculo import PoliticaMulta
 from app.domain.errors import MultaNoEncontrada
-from app.domain.models import Multa, TipoMulta
+from app.domain.models import EstadoMulta, Multa, TipoMulta
 
 
 class MultaService:
@@ -49,6 +49,9 @@ class MultaService:
 
     def listar_por_orden(self, orden_id: int) -> list[Multa]:
         return self.repo.listar_por_orden(orden_id)
+    
+    def listar(self, estado: EstadoMulta | None = None) -> list[Multa]:
+        return self.repo.listar(estado)
 
     def pagar(self, multa_id: int) -> Multa:
         multa = self.obtener(multa_id)

@@ -76,3 +76,10 @@ class PostgresMultaRepository(MultaRepository):
         with self._sf() as session:
             q = select(MultaORM).where(MultaORM.orden_id == orden_id).order_by(MultaORM.id)
             return [a_dominio(f) for f in session.scalars(q).all()]
+
+    def listar(self, estado: EstadoMulta | None = None) -> list[Multa]:
+        with self._sf() as session:
+            q = select(MultaORM).order_by(MultaORM.id)
+            if estado is not None:
+                q = q.where(MultaORM.estado == estado.value)
+            return [a_dominio(f) for f in session.scalars(q).all()]

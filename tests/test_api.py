@@ -37,6 +37,19 @@ def test_listar_por_usuario_y_por_orden():
     assert len(por_usuario) == 1
     assert por_orden[0]["id"] == multa.id
 
+def test_listar_multas_por_estado():
+    pendiente = crear_multa(888)
+    pagada = crear_multa(888)
+    client.post(f"/api/v1/multas/{pagada.id}/pago")
+
+    def ids(estado=None):
+        params = {"estado": estado} if estado else {}
+        return {m["id"] for m in client.get("/api/v1/multas", params=params).json()}
+
+    assert {pendiente.id, pagada.id} <= ids()
+    assert pendiente.id in ids("PENDIENTE") and pagada.id not in ids("PENDIENTE")
+    assert pagada.id in ids("PAGADA") and pendiente.id not in ids("PAGADA")
+    assert client.get("/api/v1/multas", params={"estado": "XYZ"}).status_code == 422
 
 def test_pagar_multa_y_no_permitir_segundo_pago():
     multa = crear_multa()

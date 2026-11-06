@@ -1,6 +1,6 @@
 from app.application.ports import MultaRepository
 from app.domain.errors import MultaDuplicada
-from app.domain.models import Multa
+from app.domain.models import EstadoMulta, Multa
 
 
 class MemoryMultaRepository(MultaRepository):
@@ -28,3 +28,6 @@ class MemoryMultaRepository(MultaRepository):
 
     def listar_por_orden(self, orden_id: int) -> list[Multa]:
         return [m for m in self._datos.values() if m.orden_id == orden_id]
+
+    def listar(self, estado: EstadoMulta | None = None) -> list[Multa]:
+        return [m for m in self._datos.values() if estado is None or m.estado == estado]
