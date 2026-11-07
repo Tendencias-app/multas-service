@@ -13,6 +13,7 @@ class FiltroEstado(str, Enum):
     PENDIENTE = "PENDIENTE"
     PAGADA = "PAGADA"
 
+
 router = APIRouter(prefix="/api/v1/multas", tags=["Multas"])
 
 
@@ -29,6 +30,7 @@ def a_respuesta(m: Multa) -> MultaResponse:
         creadaEn=m.creada_en, fechaPago=m.fecha_pago,
     )
 
+
 @router.get(
     "",
     response_model=list[MultaResponse],
@@ -41,16 +43,25 @@ def listar_multas(
     filtro = None if estado is FiltroEstado.TODAS else EstadoMulta(estado.value)
     return [a_respuesta(m) for m in svc.listar(filtro)]
 
+
 @router.get("/usuarios/{usuario_id}", response_model=list[MultaResponse],
+            responses={404: {"model": ErrorResponse}},
             summary="Lista las multas de un usuario")
 def multas_de_usuario(usuario_id: int, svc: MultaService = Depends(get_service)):
-    return [a_respuesta(m) for m in svc.listar_por_usuario(usuario_id)]
+    multas = svc.listar_por_usuario(usuario_id)
+    if not multas:
+        raise HTTPException(status_code=404, detail="El usuario no tiene multas")
+    return [a_respuesta(m) for m in multas]
 
 
 @router.get("/ordenes/{orden_id}", response_model=list[MultaResponse],
+            responses={404: {"model": ErrorResponse}},
             summary="Lista las multas de una orden")
 def multas_de_orden(orden_id: int, svc: MultaService = Depends(get_service)):
-    return [a_respuesta(m) for m in svc.listar_por_orden(orden_id)]
+    multas = svc.listar_por_orden(orden_id)
+    if not multas:
+        raise HTTPException(status_code=404, detail="La orden no tiene multas")
+    return [a_respuesta(m) for m in multas]
 
 
 @router.get("/{multa_id}", response_model=MultaResponse,

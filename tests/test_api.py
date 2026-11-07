@@ -62,3 +62,9 @@ def test_pagar_multa_y_no_permitir_segundo_pago():
 
 def test_pagar_multa_inexistente_da_404():
     assert client.post("/api/v1/multas/999999/pago").status_code == 404
+
+def test_usuario_sin_multas_da_404():
+    assert client.get("/api/v1/multas/usuarios/987654").status_code == 404
+
+def test_orden_sin_multas_da_404():
+    assert client.get("/api/v1/multas/ordenes/987654").status_code == 404

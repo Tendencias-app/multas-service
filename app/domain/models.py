@@ -7,7 +7,7 @@ from app.domain.errors import MultaYaPagada
 
 class TipoMulta(str, Enum):
     RETRASO = "RETRASO"
-    DANOS = "DAÑOS"
+    DANOS = "DANOS"
 
 
 class EstadoMulta(str, Enum):
