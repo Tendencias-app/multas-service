@@ -25,6 +25,14 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    
+  Front:
+    image: juanrt59/carsattm-customerapp:latest
+    ports:
+      - "80:80"
+    environment:
+      Api__MultasBaseUrl: "http://multas:8085"
+    restart: unless-stopped
 
   kafka:
     profiles: ["local-kafka"]

@@ -21,18 +21,24 @@ Hexagonal (puertos y adaptadores) en un único servicio desplegable.
 
 - Docker Desktop
 - Para desarrollo: Python 3.12 o superior
-- (Opcional) minikube o kind y kubectl
+- (Opcional) Kubernetes local (Docker Desktop, minikube o kind) y kubectl
 
-## Prueba rápida con la imagen publicada
+## Prueba rápida con Docker Compose
 
-Sirve para probar sin clonar el código. Cree una carpeta que contenga solo el `docker-compose.yml` de este
-repositorio y ejecute dentro de ella:
+Levanta PostgreSQL, el microservicio de multas, el front y, opcionalmente, un Kafka local. Cree una carpeta
+que contenga solo el `docker-compose.yml` de este repositorio y ejecute dentro de ella:
 
 ```bash
 docker compose pull
 docker compose --profile local-kafka up -d
 docker compose ps
 ```
+
+- API de multas: http://localhost:8085/docs
+- Front: http://localhost
+
+El front usa la variable `Api__MultasBaseUrl=http://multas:8085`, que apunta al servicio de multas por su
+nombre dentro de la red de Compose. `localhost` no sirve dentro de un contenedor.
 
 El perfil `local-kafka` levanta un Kafka local. Si el equipo usa un Kafka compartido, omita el perfil y
 defina antes la dirección:
@@ -73,6 +79,53 @@ Apagar y borrar los datos:
 docker compose --profile local-kafka down -v
 ```
 
+## Kubernetes
+
+Los manifiestos están en `k8s/` y despliegan Kafka, PostgreSQL, el microservicio de multas y el front en el
+namespace activo (`default`, si no se cambió). Con el clúster activo:
+
+```bash
+kubectl apply -f k8s/
+kubectl get pods
+```
+
+| Archivo | Contenido |
+|---|---|
+| `00-secret.yaml` | Secret `multas-db` con las credenciales de PostgreSQL |
+| `kafka.yaml` | Deployment y Service de Kafka (`kafka:9092`) |
+| `postgres.yaml` | Volumen, Deployment y Service de PostgreSQL |
+| `multas.yaml` | ConfigMap, Deployment y Service `ms-multas` (puerto 8085) |
+| `front.yaml` | ConfigMap, Deployment y Service `front` (LoadBalancer, puerto 80) |
+
+El Secret contiene credenciales de prueba (`multas`/`multas`). No use esos valores fuera de desarrollo.
+
+Dentro del clúster, el front llama a multas en `http://ms-multas:8085`. Los servicios se encuentran por
+nombre, y solo funciona dentro del mismo namespace.
+
+### Abrir el front
+
+Depende del tipo de clúster:
+
+- Docker Desktop en modo `kubeadm`: `http://localhost`
+- minikube: `minikube service front --url`
+- Cualquier clúster (por ejemplo Docker Desktop en modo `kind`): `kubectl port-forward svc/front 8080:80`
+  y abrir `http://localhost:8080`
+
+### Topics y eventos en Kubernetes
+
+Los comandos son los mismos que con Compose, cambiando `docker exec` por `kubectl exec`:
+
+```powershell
+kubectl exec deploy/kafka -- /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server localhost:9092 --topic Multas_IniciarMulta
+kubectl exec deploy/kafka -- /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server localhost:9092 --topic Orden_MultaPagada
+kubectl exec deploy/kafka -- /opt/kafka/bin/kafka-topics.sh --create --if-not-exists --bootstrap-server localhost:9092 --topic Usuario_usuarioActivado
+'{"ordenId":20,"usuarioId":1001,"tipo":"RETRASO","valorAlquiler":500000,"diasRetraso":3,"observacion":"Prueba k8s"}' | kubectl exec -i deploy/kafka -- /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic Multas_IniciarMulta
+```
+
+Para consultar la API desde la máquina: `kubectl port-forward svc/ms-multas 8085:8085`.
+
+Borrar todo lo desplegado (incluye los datos de PostgreSQL): `kubectl delete -f k8s/`.
+
 ## Desarrollo local
 
 El servicio corre en la máquina y usa dos contenedores de apoyo: PostgreSQL (con el puerto 5432 publicado)
@@ -89,10 +142,10 @@ uvicorn app.main:app --reload --port 8085
 ```
 
 El archivo `.env.example` contiene:
+- DATABASE_URL=postgresql+psycopg://multas:multas@localhost:5432/multas_db
+- KAFKA_ENABLED=true
+- KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 
-DATABASE_URL=postgresql+psycopg://multas:multas@localhost:5432/multas_db
-KAFKA_ENABLED=true
-KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 
 Para borrar la base de desarrollo: `docker rm -f multas-pg`.
 
@@ -202,10 +255,6 @@ pip-audit -r requirements.txt
 ```
 
 El pipeline de CI (`.github/workflows/ci.yml`) ejecuta estas revisiones y construye la imagen.
-
-## Kubernetes
-
-Ver la carpeta `k8s/`. Las credenciales van en un `Secret` creado con `kubectl`, no en los archivos.
 
 ## Pendientes
 

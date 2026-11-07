@@ -28,7 +28,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: ms-multas
-          image: carsattm-ms-multas:1.0.1
+          image: joricor/multas-service:1.0.3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8085
@@ -64,5 +64,5 @@ spec:
   selector:
     app: ms-multas
   ports:
-    - port: 80
+    - port: 8085
       targetPort: 8085
